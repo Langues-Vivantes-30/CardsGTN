@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>File numérique</title>
+
+<style>
+body { font-family: Arial; text-align: center; font-size: 30px}
+
+#cardsContainer {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.card {
+    width: 110px;
+    height: 135px;
+    background: #3498db;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.revealed {
+    background: white;
+    border: 2px solid #3498db;
+}
+
+.target { background: red !important; }
+.correct { background: green !important; }
+.wrong { background: orange !important; }
+
+.label {
+    width: 110px;
+    height: 135px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.options {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 50px; /* 🔥 espace entre les options */
+}
+
+.options label {
+    display: flex;
+    align-items: center; /* 🔥 centre vertical */
+    gap: 8px;
+    cursor: pointer;
+    font-size: 22px;
+}
+
+.options input {
+    margin: 0; /* supprime le décalage moche */
+}
+
+.icon {
+    width: 60px;
+    height: 60px;
+    object-fit: contain;
+}
+
+/* 🔥 FIX IMPORTANT POUR LES SVG */
+svg {
+    width: 100%;
+    height: 100%;
+}
+
+/* conteneur pour empilement */
+.dice-stack {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    height: 100%;
+}
+
+.dice-stack svg {
+    width: 70%;
+    height: 50%;
+}
+
+img.hand {
+    width: 95%;
+    height: 95%;
+    object-fit: contain;
+}
+
+#refreshBtn { display: none; }
+</style>
+</head>
+
+<body>
+
+<div>
+Max : <input type="number" id="maxInput" min="2" max="10" value="6">
+<button onclick="generateCards()">OK</button>
+<button id="refreshBtn" onclick="changeTarget()">↻</button>
+
+<br><br>
+
+<div class="options">
+    <label>
+        <input type="radio" name="mode" value="number" checked>
+        0,1,2,3
+    </label>
+
+    <label>
+        <input type="radio" name="mode" value="dice">
+        <span class="icon">
+            <svg viewBox="0 0 100 100">
+                <rect x="5" y="5" width="90" height="90" rx="15" fill="white" stroke="black"/>
+                <circle cx="25" cy="25" r="6"/>
+                <circle cx="50" cy="50" r="6"/>
+                <circle cx="75" cy="75" r="6"/>
+            </svg>
+        </span>
+    </label>
+
+    <label>
+        <input type="radio" name="mode" value="fingers">
+        <img src="images/3.png" class="icon">
+    </label>
+</div>
+<br><br>
+
+<label>
+<input type="checkbox" id="randomMode" onchange="toggleRefresh()">
+🎯
+</label>
+</div>
+
+<div id="cardsContainer"></div>
+
+<script>
+let targetIndex = null;
+let currentMax = 0;
+
+function getMode() {
+    return document.querySelector('input[name="mode"]:checked').value;
+}
+
+function toggleRefresh() {
+    refreshBtn.style.display = randomMode.checked ? "inline" : "none";
+}
+
+function generateCards() {
+    const max = parseInt(maxInput.value);
+    if (max < 2 || max > 10) return;
+
+    currentMax = max;
+    cardsContainer.innerHTML = "";
+
+    cardsContainer.appendChild(createLabel(0));
+
+    for (let i = 1; i < max; i++) {
+        let c = document.createElement("div");
+        c.className = "card";
+        c.dataset.value = i;
+        c.onclick = () => revealCard(c, i);
+        cardsContainer.appendChild(c);
+    }
+
+    cardsContainer.appendChild(createLabel(max));
+
+    if (randomMode.checked) changeTarget();
+}
+
+function createLabel(n) {
+    let d = document.createElement("div");
+    d.className = "label";
+
+    if (getMode() === "number") d.textContent = n;
+    if (getMode() === "dice") d.innerHTML = getDice(n);
+    if (getMode() === "fingers") d.innerHTML = getFingers(n);
+
+    return d;
+}
+
+function revealCard(card, n) {
+    if (card.classList.contains("revealed")) return;
+    card.classList.add("revealed");
+
+    if (getMode() === "number") card.textContent = n;
+    if (getMode() === "dice") card.innerHTML = getDice(n);
+    if (getMode() === "fingers") card.innerHTML = getFingers(n);
+
+    if (randomMode.checked) {
+        card.classList.add(n === targetIndex ? "correct" : "wrong");
+    }
+}
+
+/* 🎲 DÉS */
+function dieFace(n) {
+
+    if (n === 0) {
+        return `
+        <svg viewBox="0 0 100 100">
+            <rect x="5" y="5" width="90" height="90" rx="15" fill="white" stroke="black"/>
+        </svg>`;
+    }
+
+    const dots = {
+        1:[[50,50]],
+        2:[[25,25],[75,75]],
+        3:[[25,25],[50,50],[75,75]],
+        4:[[25,25],[75,25],[25,75],[75,75]],
+        5:[[25,25],[75,25],[50,50],[25,75],[75,75]]
+    };
+
+    let circles = (dots[n]||[]).map(p =>
+        `<circle cx="${p[0]}" cy="${p[1]}" r="7" fill="black"/>`).join("");
+
+    return `
+    <svg viewBox="0 0 100 100">
+        <rect x="5" y="5" width="90" height="90" rx="15" fill="white" stroke="black"/>
+        ${circles}
+    </svg>`;
+}
+
+function getDice(n) {
+
+    if (n === 0) return dieFace(0);
+
+    if (n <= 5) return dieFace(n);
+
+    return `
+        <div class="dice-stack">
+            ${dieFace(n - 5)}
+            ${dieFace(5)}
+        </div>`;
+}
+/* ✋ Images */
+function getFingers(n) {
+    return `<img class="hand" src="images/${n}.png" alt="${n} doigts">`;
+}
+
+function changeTarget() {
+    document.querySelectorAll(".card").forEach(c => c.classList.remove("target"));
+
+    targetIndex = Math.floor(Math.random() * (currentMax - 1)) + 1;
+
+    document.querySelectorAll(".card").forEach(c => {
+        if (+c.dataset.value === targetIndex) c.classList.add("target");
+    });
+}
+</script>
+
+</body>
+</html>
